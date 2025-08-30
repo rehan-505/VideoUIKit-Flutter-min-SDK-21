@@ -33,7 +33,7 @@ dependencies:
   agora_rtm:
     git:
       url: https://github.com/rehan-505/Agora-Flutter-RTM-SDK.git
-      ref: 1.5.9-NewUI
+      ref: v2-embedding
 
 dev_dependencies:
   flutter_test:
