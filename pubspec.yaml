@@ -8,7 +8,7 @@ publish_to: none  # This prevents the package from being published
 
 
 environment:
-  sdk: ">=2.19.0 <4.0.0"
+  sdk: ">=3.0.0 <4.0.0"
   flutter: ">=2.2.0"
 
 dependencies:
@@ -24,16 +24,16 @@ dependencies:
   http: ">=0.13.1 <2.0.0"
   lints: ">=1.0.1 <3.0.1"
   permission_handler: ^11.0.0
-#  agora_rtm: 2.2.2
+  agora_rtm: ^2.2.6
 #  agora_rtm:
 #    git:
 #      url: https://github.com/AgoraIO-Extensions/Agora-Flutter-RTM-SDK
 #      ref: 1.5.9-NewUI
 
-  agora_rtm:
-    git:
-      url: https://github.com/rehan-505/Agora-Flutter-RTM-SDK.git
-      ref: v2-embedding
+#  agora_rtm:
+#    git:
+#      url: https://github.com/rehan-505/Agora-Flutter-RTM-SDK.git
+#      ref: v2-embedding
 
 dev_dependencies:
   flutter_test:
