@@ -24,13 +24,17 @@ void hostControl({
 
   var json = jsonEncode(muteRequest);
   Message message = Message(text: json);
-  RtmMessage msg = RtmMessage.fromText(message.text);
+  
   sessionController.value.uidToUserIdMap!.forEach((key, val) {
     if (key == sessionController.value.users[index].uid) {
       peerId = val;
       if (sessionController.value.isLoggedIn) {
-        sessionController.value.agoraRtmClient
-            ?.sendMessageToPeer2(peerId!, msg);
+        // RTM v2 uses publish method with RtmChannelType.user for peer-to-peer
+        sessionController.value.agoraRtmClient?.publish(
+          peerId!,
+          message.text,
+          channelType: RtmChannelType.user,
+        );
       } else {
         log("User not logged in", level: Level.warning.value);
       }

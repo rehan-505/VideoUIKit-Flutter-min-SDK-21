@@ -56,12 +56,14 @@ class SessionController extends ValueNotifier<AgoraSettings> {
   /// Function to initialize the Agora RTM client.
   Future<void> initializeRtm(
       AgoraRtmClientEventHandler agoraRtmClientEventHandler) async {
-    value = value.copyWith(
-      agoraRtmClient: await AgoraRtmClient.createInstance(
-        value.connectionData!.appId,
-      ),
+    // RTM v2 API - create client using RTM helper function
+    final (status, client) = await RTM(
+      value.connectionData!.appId,
+      value.generatedRtmId ?? 'user_${DateTime.now().millisecondsSinceEpoch}',
     );
-    if (value.agoraRtmClient != null) {
+    
+    if (!status.error) {
+      value = value.copyWith(agoraRtmClient: client);
       addListener(() {
         createRtmClientEvents(agoraRtmClientEventHandler);
       });
@@ -78,7 +80,8 @@ class SessionController extends ValueNotifier<AgoraSettings> {
     log("SDK initialized: ${value.engine}", level: Level.error.value);
     // Getting SDK versions and assigning them
     SDKBuildInfo? rtcVersion = await value.engine?.getVersion();
-    AgoraVersions.staticRTM = await AgoraRtmClient.getSdkVersion();
+    // RTM v2 doesn't have getSdkVersion method, set a placeholder
+    AgoraVersions.staticRTM = "2.2.6";
     if (rtcVersion?.version.toString() != null) {
       AgoraVersions.staticRTC = rtcVersion!.version.toString();
     }

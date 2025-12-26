@@ -28,17 +28,26 @@ Future<void> rtmMethods(
 Future<void> _loginToRtm(SessionController sessionController) async {
   if (!sessionController.value.isLoggedIn) {
     try {
-      await sessionController.value.agoraRtmClient?.login(
+      // RTM v2 uses login method with token
+      final (status, _) = await sessionController.value.agoraRtmClient!.login(
         sessionController.value.connectionData!.tempRtmToken ??
-            sessionController.value.generatedRtmToken,
-        sessionController.value.generatedRtmId!,
+            sessionController.value.generatedRtmToken ??
+            '',
       );
-      sessionController.value =
-          sessionController.value.copyWith(isLoggedIn: true);
-      log(
-        'Username : ${sessionController.value.connectionData!.username} and rtmId : ${sessionController.value.generatedRtmId} logged in',
-        level: Level.info.value,
-      );
+      
+      if (!status.error) {
+        sessionController.value =
+            sessionController.value.copyWith(isLoggedIn: true);
+        log(
+          'Username : ${sessionController.value.connectionData!.username} and rtmId : ${sessionController.value.generatedRtmId} logged in',
+          level: Level.info.value,
+        );
+      } else {
+        log(
+          'Login failed: ${status.reason}',
+          level: Level.error.value,
+        );
+      }
     } catch (e) {
       log(
         'Error occurred while trying to login. ${e.toString()}',
@@ -48,15 +57,16 @@ Future<void> _loginToRtm(SessionController sessionController) async {
   }
 }
 
-Future<AgoraRtmChannel?> _createChannel({
+Future<StreamChannel?> _createChannel({
   required String rtmChannelName,
   required AgoraRtmChannelEventHandler agoraRtmChannelEventHandler,
   required SessionController sessionController,
 }) async {
-  AgoraRtmChannel? channel = await sessionController.value.agoraRtmClient
-      ?.createChannel(rtmChannelName);
+  // RTM v2 uses StreamChannel instead of RtmChannel
+  final (status, channel) = await sessionController.value.agoraRtmClient!
+      .createStreamChannel(rtmChannelName);
 
-  if (channel != null) {
+  if (!status.error && channel != null) {
     await rtmChannelEventHandler(
       channel: channel,
       agoraRtmChannelEventHandler: agoraRtmChannelEventHandler,
@@ -71,18 +81,28 @@ Future<void> _joinRtmChannel(
     SessionController sessionController) async {
   if (!sessionController.value.isInChannel) {
     try {
-      sessionController.value = sessionController.value.copyWith(
-        agoraRtmChannel: await _createChannel(
-          rtmChannelName:
-              sessionController.value.connectionData?.rtmChannelName ??
-                  sessionController.value.connectionData!.channelName,
-          agoraRtmChannelEventHandler: agoraRtmChannelEventHandler,
-          sessionController: sessionController,
-        ),
+      final channel = await _createChannel(
+        rtmChannelName:
+            sessionController.value.connectionData?.rtmChannelName ??
+                sessionController.value.connectionData!.channelName,
+        agoraRtmChannelEventHandler: agoraRtmChannelEventHandler,
+        sessionController: sessionController,
       );
-      await sessionController.value.agoraRtmChannel?.join();
-      sessionController.value =
-          sessionController.value.copyWith(isInChannel: true);
+      
+      sessionController.value = sessionController.value.copyWith(
+        agoraRtmChannel: channel,
+      );
+      
+      // RTM v2 uses join method on StreamChannel
+      if (channel != null) {
+        final (status, _) = await channel.join();
+        if (!status.error) {
+          sessionController.value =
+              sessionController.value.copyWith(isInChannel: true);
+        } else {
+          log('RTM Join channel error : ${status.reason}', level: Level.error.value);
+        }
+      }
     } catch (e) {
       log('RTM Join channel error : ${e.toString()}', level: Level.error.value);
     }
@@ -107,16 +127,28 @@ Future<void> sendUserData({
   var json = jsonEncode(userData);
 
   Message message = Message(text: json, ts: ts, offline: false);
-  RtmMessage msg = RtmMessage.fromText(message.text);
 
   if (sessionController.value.agoraRtmChannel != null && toChannel) {
-    await sessionController.value.agoraRtmChannel?.sendMessage2(msg);
-    log('User data sent to channel', level: Level.info.value);
+    // RTM v2 uses publishTextMessage on StreamChannel
+    // First we need to join a topic
+    final channelName = await sessionController.value.agoraRtmChannel!.getChannelName();
+    if (channelName.$2 != null) {
+      // Publish to the default topic
+      await sessionController.value.agoraRtmChannel!.publishTextMessage(
+        'default',
+        message.text,
+      );
+      log('User data sent to channel', level: Level.info.value);
+    }
   } else if (sessionController.value.agoraRtmClient != null &&
       !toChannel &&
       peerRtmId != null) {
-    await sessionController.value.agoraRtmClient
-        ?.sendMessageToPeer2(peerRtmId, msg);
+    // RTM v2 uses publish method with RtmChannelType.user for peer-to-peer
+    await sessionController.value.agoraRtmClient!.publish(
+      peerRtmId,
+      message.text,
+      channelType: RtmChannelType.user,
+    );
     log('User data sent to peer', level: Level.info.value);
   } else {
     log("No user in the channel", level: Level.warning.value);
